@@ -8,6 +8,20 @@ class Composer < AbstractPhpPhar
   sha256 "78c5c0e3f41dcd4d6ee532d9ae7e23afa33bdd409d8824dff026f3991d6ad70a"
   head "https://getcomposer.org/composer.phar"
 
+  def phar_wrapper
+    <<-EOS.undent
+      #!/usr/bin/env bash
+
+      TEMP_PATH="$( mktemp -t php-no-debug )"
+      FILES="$( /usr/bin/env php -r 'echo php_ini_loaded_file() . "\n" . str_replace(",","", php_ini_scanned_files());' )"
+      cat $FILES | sed '/xdebug/d' > "$TEMP_PATH"
+
+      /usr/bin/env php -n -c "$TEMP_PATH" -d detect_unicode=Off #{libexec}/#{@real_phar_file} "$@"
+
+      rm -f "$TEMP_PATH"
+    EOS
+  end
+
   bottle do
     cellar :any_skip_relocation
     sha256 "26a8f2ffc5cebe41b1c00fa112d0e32953a5895d87896c21e8f18f5c7b8df68a" => :el_capitan
